@@ -42,6 +42,12 @@ def draw_text(surf, text, size, x, y):
     surf.blit(text_surface, text_rect)
 
 
+def newmod():
+    m = Mob()
+    all_sprites.add(m)
+    mobs.add(m)
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -53,6 +59,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.centerx = WIDTH / 2
         self.rect.bottom = HEIGHT - 10
         self.speedx = 0
+        self.shield = 100
 
     def update(self):
         self.speedx = 0
@@ -157,9 +164,7 @@ bullets = pygame.sprite.Group()
 player = Player()
 all_sprites.add(player)
 for i in range(8):
-    m = Mob()
-    all_sprites.add(m)
-    mobs.add(m)
+    newmod()
 score = 0
 pygame.mixer.music.play(loops=-1)
 
@@ -185,15 +190,16 @@ while running:
     for hit in hits:
         score += 50 - hit.radius
         random.choice(expl_sounds).play()
-        m = Mob()
-        all_sprites.add(m)
-        mobs.add(m)
+        newmod()
 
     # Проверка, не ударил ли моб игрока
     hits = pygame.sprite.spritecollide(
-        player, mobs, False, pygame.sprite.collide_circle)
-    if hits:
-        running = False
+        player, mobs, True, pygame.sprite.collide_circle)
+    for hit in hits:
+        player.shield -= hit.radius * 2
+        newmod()
+        if player.shield <= 0:
+            running = False
 
     # Рендеринг
     screen.fill(BLACK)
