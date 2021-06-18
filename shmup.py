@@ -14,6 +14,7 @@ snd_dir = path.join(path.dirname(__file__), 'snd')
 WIDTH = 480
 HEIGHT = 600
 FPS = 60
+POWERUP_TIME = 5000
 
 # Задаем цвета
 WHITE = (255, 255, 255)
@@ -22,7 +23,6 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
-
 # colors = [WHITE, RED, BLUE, YELLOW]
 
 
@@ -70,6 +70,23 @@ def draw_lives(surf, x, y, lives, img):
         surf.blit(img, img_rect)
 
 
+def show_go_screen():
+    screen.blit(background, background_rect)
+    draw_text(screen, "SHMUP!", 64, WIDTH / 2, HEIGHT / 4)
+    draw_text(screen, "Arrow keys move, Space to fire",
+              22, WIDTH / 2, HEIGHT / 2)
+    draw_text(screen, "Press a key to begin", 18, WIDTH / 2, HEIGHT * 3 / 4)
+    pygame.display.flip()
+    waiting = True
+    while waiting:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.KEYUP:
+                waiting = False
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -87,9 +104,16 @@ class Player(pygame.sprite.Sprite):
         self.lives = 3
         self.hidden = False
         self.hide_timer = pygame.time.get_ticks()
+        self.power = 1
+        self.power_time = pygame.time.get_ticks()
 
     def update(self):
-        # показать игрока, если скрыто через определенное время
+        # тайм-аут для бонусов
+        if self.power >= 2 and pygame.time.get_ticks() - self.power_time > POWERUP_TIME:
+            self.power -= 1
+            self.power_time = pygame.time.get_ticks()
+
+        # показать игрока, если он скрыт, через определенное время
         if self.hidden and pygame.time.get_ticks() - self.hide_timer > 1000:
             self.hidden = False
             self.rect.centerx = WIDTH / 2
@@ -109,14 +133,27 @@ class Player(pygame.sprite.Sprite):
         if self.rect.left < 0:
             self.rect.left = 0
 
+    def powerup(self):
+        self.power += 1
+        self.power_time = pygame.time.get_ticks()
+
     def shoot(self):
         now = pygame.time.get_ticks()
         if now - self.last_shot > self.shoot_delay:
             self.last_shot = now
-            bullet = Bullet(self.rect.centerx, self.rect.top)
-            all_sprites.add(bullet)
-            bullets.add(bullet)
-            shoot_sound.play()
+            if self.power == 1:
+                bullet = Bullet(self.rect.centerx, self.rect.top)
+                all_sprites.add(bullet)
+                bullets.add(bullet)
+                shoot_sound.play()
+            if self.power >= 2:
+                bullet1 = Bullet(self.rect.left, self.rect.centery)
+                bullet2 = Bullet(self.rect.right, self.rect.centery)
+                all_sprites.add(bullet1)
+                all_sprites.add(bullet2)
+                bullets.add(bullet1)
+                bullets.add(bullet2)
+                shoot_sound.play()
 
     def hide(self):
         # временно скрыть игрока
@@ -263,6 +300,10 @@ powerup_images['gun'] = pygame.image.load(path.join(img_dir, 'bolt_gold.png'))
 
 # Загрузка мелодий игры
 shoot_sound = pygame.mixer.Sound(path.join(snd_dir, 'pew.wav'))
+
+shield_sound = pygame.mixer.Sound(path.join(snd_dir, 'pow4.wav'))
+power_sound = pygame.mixer.Sound(path.join(snd_dir, 'pow5.wav'))
+
 expl_sounds = []
 for snd in ['expl3.wav', 'expl6.wav']:
     expl_sounds.append(pygame.mixer.Sound(path.join(snd_dir, snd)))
@@ -271,21 +312,26 @@ pygame.mixer.music.load(
 pygame.mixer.music.set_volume(0.4)
 
 
-all_sprites = pygame.sprite.Group()
-mobs = pygame.sprite.Group()
-bullets = pygame.sprite.Group()
-powerups = pygame.sprite.Group()
-player = Player()
-all_sprites.add(player)
-for i in range(8):
-    newmob()
-score = 0
 pygame.mixer.music.play(loops=-1)
 
 
 # Цикл игры
+game_over = True
 running = True
 while running:
+    if game_over:
+        show_go_screen()
+        game_over = False
+        all_sprites = pygame.sprite.Group()
+        mobs = pygame.sprite.Group()
+        bullets = pygame.sprite.Group()
+        powerups = pygame.sprite.Group()
+        player = Player()
+        all_sprites.add(player)
+        for i in range(8):
+            newmob()
+        score = 0
+
     # держим цикл на правильной скорости
     clock.tick(FPS)
     # ввод процесса (события)
@@ -303,7 +349,7 @@ while running:
         random.choice(expl_sounds).play()
         expl = Explosion(hit.rect.center, 'lg')
         all_sprites.add(expl)
-        if random.random() > 0.1:
+        if random.random() > 0.9:
             pow = Pow(hit.rect.center)
             all_sprites.add(pow)
             powerups.add(pow)
@@ -330,14 +376,16 @@ while running:
     for hit in hits:
         if hit.type == 'shield':
             player.shield += random.randrange(10, 30)
+            shield_sound.play()
             if player.shield >= 100:
                 player.shield = 100
         if hit.type == 'gun':
-            pass
+            player.powerup()
+            power_sound.play()
 
     # Если игрок умер, игра окончена
     if player.lives == 0 and not death_explosion.alive():
-        running = False
+        game_over = True
 
     # Рендеринг
     screen.fill(BLACK)
