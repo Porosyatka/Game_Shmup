@@ -200,6 +200,7 @@ for img in meteor_list:
 explosion_anim = {}
 explosion_anim['lg'] = []
 explosion_anim['sm'] = []
+explosion_anim['player'] = []
 for i in range(9):
     filename = 'regularExplosion0{}.png'.format(i)
     img = pygame.image.load(path.join(img_dir, filename))
@@ -208,6 +209,10 @@ for i in range(9):
     explosion_anim['lg'].append(img_lg)
     img_sm = pygame.transform.scale(img, (32, 32))
     explosion_anim['sm'].append(img_sm)
+    filename = 'sonicExplosion0{}.png'.format(i)
+    img = pygame.image.load(path.join(img_dir, filename))
+    img.set_colorkey(BLACK)
+    explosion_anim['player'].append(img)
 
 
 # Загрузка мелодий игры
@@ -267,7 +272,13 @@ while running:
         all_sprites.add(expl)
         newmod()
         if player.shield <= 0:
-            running = False
+            death_explosion = Explosion(player.rect.center, 'player')
+            all_sprites.add(death_explosion)
+            player.kill()
+
+    # Если игрок умер, игра окончена
+    if not player.alive() and not death_explosion.alive():
+        running = False
 
     # Рендеринг
     screen.fill(BLACK)
