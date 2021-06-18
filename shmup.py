@@ -1,7 +1,7 @@
 # Frozen Jam by tgfcoder <https://twitter.com/tgfcoder> licensed under CC-BY-3
 # Art from Kenney.nl
 
-# Pygame шаблон - скелет для нового проекта Pygame
+# Pygame шаблон - скелет для нового проекта Pygame tt
 import pygame
 import random
 from os import path
